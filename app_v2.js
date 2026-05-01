@@ -1,6 +1,6 @@
 const { useState, useRef, useEffect } = React;
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.4.1";
 
 const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 
