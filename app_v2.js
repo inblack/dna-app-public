@@ -1,6 +1,31 @@
 const { useState, useRef, useEffect } = React;
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.2.0";
+
+const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
+
+// Returns true if the genotype carries the risk allele,
+// accounting for strand flips (Ancestry/23andMe report on either strand).
+function carriesRiskAllele(genotype, riskAllele, refAllele) {
+    if (!genotype || !riskAllele) return false;
+    const gt = genotype.trim().toUpperCase();
+    const risk = riskAllele.toUpperCase();
+    const ref  = (refAllele || '').toUpperCase();
+
+    // Direct match
+    if (gt.includes(risk)) return true;
+
+    // Strand flip: only flip if this is an A/T or C/G ambiguous site
+    const compRisk = COMPLEMENT[risk];
+    const compRef  = COMPLEMENT[ref];
+    // If ref and risk are complements of each other (e.g. ref=G, risk=A → comp of A is T ≠ G → not ambiguous)
+    // Only flip when risk complement makes sense against the ref complement
+    if (compRisk && compRef && compRisk !== ref) {
+        if (gt.includes(compRisk)) return true;
+    }
+
+    return false;
+}
 
 function App() {
     const [fileData, setFileData] = useState(null);
@@ -73,8 +98,8 @@ function App() {
                     const dbEntry = refDb[rsid];
                     let finalRisk = 'normal';
                     
-                    // Simple strand match check
-                    if (genotype && dbEntry.risk_allele && genotype.includes(dbEntry.risk_allele)) {
+                    // Strand-aware risk allele check
+                    if (carriesRiskAllele(genotype, dbEntry.risk_allele, dbEntry.ref_allele)) {
                         finalRisk = dbEntry.risk;
                     }
 
