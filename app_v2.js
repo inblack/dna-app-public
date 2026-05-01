@@ -1,5 +1,7 @@
 const { useState, useRef, useEffect } = React;
 
+const APP_VERSION = "1.1.0";
+
 function App() {
     const [fileData, setFileData] = useState(null);
     const [isParsing, setIsParsing] = useState(false);
@@ -12,7 +14,7 @@ function App() {
 
     useEffect(() => {
         // Fetch the static reference database built by the Python script
-        fetch('ref_db.json')
+        fetch('ref_db.json?v=' + new Date().getTime())
             .then(res => res.json())
             .then(data => {
                 setRefDb(data);
@@ -120,7 +122,7 @@ function App() {
                 <p>Secure, local browser analysis of your genetic data.</p>
                 {!dbLoading && refDb['_metadata'] && (
                     <p style={{fontSize: '0.8rem', color: '#94a3b8', marginTop: '-0.5rem'}}>
-                        ClinVar Database Version: {refDb['_metadata'].last_updated}
+                        App Version: v{APP_VERSION} | ClinVar Database: {refDb['_metadata'].last_updated}
                     </p>
                 )}
             </header>
@@ -194,7 +196,7 @@ function App() {
                                                         rel="noopener noreferrer"
                                                         style={{color: '#3b82f6', textDecoration: 'none', fontWeight: '500'}}
                                                     >
-                                                        {item.rsid} 🔗
+                                                        {item.rsid}
                                                     </a>
                                                 </td>
                                                 <td>{item.chromosome}</td>
