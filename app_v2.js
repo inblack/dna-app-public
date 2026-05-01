@@ -335,7 +335,7 @@ function App() {
                                     </table>
                                 </div>
                             ));
-                        })()
+                        })()}
                     </div>
                 )}
             </main>
