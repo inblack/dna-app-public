@@ -7,17 +7,32 @@ const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 // Count how many copies of the risk allele the genotype contains,
 // accounting for strand flips.
 function countRiskAlleles(genotype, riskAllele, refAllele) {
-    if (!genotype || !riskAllele) return 0;
+    if (!genotype || !riskAllele || !refAllele) return 0;
     const gt = genotype.trim().toUpperCase().split('');
     const risk = riskAllele.toUpperCase();
-    const ref  = (refAllele || '').toUpperCase();
+    const ref  = refAllele.toUpperCase();
 
+    // 1. Check for direct match first
+    const directCount = gt.filter(a => a === risk).length;
+    const refCount = gt.filter(a => a === ref).length;
+    
+    // If we have any match for ref or risk on the direct strand, assume direct strand
+    if (directCount > 0 || refCount > 0) return directCount;
+
+    // 2. If no direct match, check for strand flip
     const compRisk = COMPLEMENT[risk];
     const compRef  = COMPLEMENT[ref];
-    // Determine if we need to check complement (strand flip)
-    const useComplement = compRisk && compRef && compRisk !== ref;
+    
+    // Safety: If it's an ambiguous SNP (A/T or C/G), we can't reliably flip
+    if (compRisk === ref) return 0; 
 
-    return gt.filter(a => a === risk || (useComplement && a === compRisk)).length;
+    const flipCount = gt.filter(a => a === compRisk).length;
+    const flipRefCount = gt.filter(a => a === compRef).length;
+
+    // If it matches the complements, return the flipped count
+    if (flipCount > 0 || flipRefCount > 0) return flipCount;
+
+    return 0;
 }
 
 // Classify risk based on zygosity and chromosome.
