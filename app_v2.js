@@ -1,6 +1,6 @@
 const { useState, useRef, useEffect } = React;
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 
 const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 
@@ -43,6 +43,38 @@ function classifyRisk(dbEntry, genotype, chromosome, sex) {
     // Heterozygous: one copy = carrier (relevant for recessive; dominant would still be high)
     // We can't easily know dominance from ClinVar TSV, so flag as 'carrier' to avoid false alarms
     return 'carrier';
+}
+
+// Category priority order for display
+const CATEGORY_ORDER = [
+    'Blood & Hematology',
+    'Cardiovascular',
+    'Cancer Risk',
+    'Drug Response',
+    'Neurological',
+    'Metabolic & Endocrine',
+    'Immune & Infectious Disease',
+    'Nutrition & Metabolism',
+    'Musculoskeletal',
+    'Sensory',
+    'Other',
+];
+
+const RISK_ORDER = { high: 0, carrier: 1, medium: 2, low: 3, normal: 4 };
+
+function getCategory(trait) {
+    const t = (trait || '').toLowerCase();
+    if (/hemochromat|anemia|iron|thalassemia|sickle|coagulat|thrombosis|thrombophilia|hemoglobin|platelet|factor v|bleeding|polycythemia/.test(t)) return 'Blood & Hematology';
+    if (/cholesterol|lipid|lipodystrophy|coronary|cardiac|cardiomy|arrhythmia|heart|aortic|vascular|hypertension|blood pressure|atrial|brugada|long qt/.test(t)) return 'Cardiovascular';
+    if (/cancer|tumor|carcinoma|neoplasm|polyposis|melanoma|brca|lynch|adenomatous|mesothelioma|exostosis|paraganglioma|pheochromocy/.test(t)) return 'Cancer Risk';
+    if (/drug response|pharmacogenomic|capecitabine|fluorouracil|warfarin|clopidogrel|levothyroxine|statin|codeine|tamoxifen/.test(t)) return 'Drug Response';
+    if (/epilepsy|seizure|neuropathy|neurofibromatosis|neurological|brain|dystonia|leigh|parkinson|alzheimer|dementia|ataxia|deafness dystonia|spongy/.test(t)) return 'Neurological';
+    if (/diabetes|thyroid|parathyroid|hormone|adrenal|hyperparathyroid|insulin|growth hormone|cushings/.test(t)) return 'Metabolic & Endocrine';
+    if (/leprosy|immune|autoimmune|lupus|rheuma|infectious|hiv|hepatitis|susceptibility to/.test(t)) return 'Immune & Infectious Disease';
+    if (/folate|vitamin|amino acid|citrullin|pyridoxine|methylmalonic|homocystinuria|phenylketonuria|galactosemia/.test(t)) return 'Nutrition & Metabolism';
+    if (/muscle|exostosis|skeletal|bone|arthritis|ehlers|marfan|connective tissue/.test(t)) return 'Musculoskeletal';
+    if (/deaf|hearing|vision|eye|retinal|optic|macular/.test(t)) return 'Sensory';
+    return 'Other';
 }
 
 function App() {
@@ -227,53 +259,83 @@ function App() {
                         
                         {isParsing ? (
                             <p>Parsing DNA data locally...</p>
-                        ) : (
-                            <div style={{overflowX: 'auto'}}>
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th onClick={() => handleSort('rsid')}>RSID ↕</th>
-                                            <th onClick={() => handleSort('chromosome')}>Chromosome ↕</th>
-                                            <th onClick={() => handleSort('genotype')}>Your Genotype ↕</th>
-                                            <th onClick={() => handleSort('trait')}>Associated Trait ↕</th>
-                                            <th onClick={() => handleSort('risk')}>Risk Level ↕</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {results.filter(item => showNormal || item.risk !== 'normal').map((item, idx) => (
-                                            <tr key={idx}>
-                                                <td>
-                                                    <a 
-                                                        href={`https://www.snpedia.com/index.php/${item.rsid}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        style={{color: '#3b82f6', textDecoration: 'none', fontWeight: '500'}}
-                                                    >
-                                                        {item.rsid}
-                                                    </a>
-                                                </td>
-                                                <td>{item.chromosome}</td>
-                                                <td><strong>{item.genotype}</strong></td>
-                                                <td>{item.trait}</td>
-                                                <td>
-                                                    <span className={`badge badge-${item.risk}`}>
-                                                        {item.risk}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {results.length === 0 && (
+                        ) : (() => {
+                            const filtered = results.filter(item => showNormal || item.risk !== 'normal');
+                            if (filtered.length === 0) {
+                                return <p style={{textAlign: 'center', color: '#94a3b8', padding: '2rem'}}>No variants found matching your filters.</p>;
+                            }
+
+                            // Group by category
+                            const grouped = {};
+                            filtered.forEach(item => {
+                                const cat = getCategory(item.trait);
+                                if (!grouped[cat]) grouped[cat] = [];
+                                grouped[cat].push(item);
+                            });
+
+                            // Sort within each group by risk severity
+                            Object.values(grouped).forEach(items => {
+                                items.sort((a, b) => (RISK_ORDER[a.risk] ?? 9) - (RISK_ORDER[b.risk] ?? 9));
+                            });
+
+                            const sortedCategories = CATEGORY_ORDER.filter(c => grouped[c]);
+                            const remainingCats = Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c));
+
+                            return [...sortedCategories, ...remainingCats].map(category => (
+                                <div key={category} style={{marginBottom: '2rem'}}>
+                                    <h3 style={{
+                                        fontSize: '1rem',
+                                        fontWeight: '600',
+                                        color: '#94a3b8',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.08em',
+                                        borderBottom: '1px solid #334155',
+                                        paddingBottom: '0.5rem',
+                                        marginBottom: '0',
+                                    }}>{category} <span style={{fontWeight: 400, fontSize: '0.8rem'}}>({grouped[category].length})</span></h3>
+                                    <table>
+                                        <thead>
                                             <tr>
-                                                <td colSpan="5" style={{textAlign: 'center', padding: '2rem', color: '#94a3b8'}}>
-                                                    No known traits found in this sample data.<br/>
-                                                    (Note: Currently using a small mock database for demonstration)
-                                                </td>
+                                                <th onClick={() => handleSort('rsid')}>RSID ↕</th>
+                                                <th onClick={() => handleSort('chromosome')}>Chr ↕</th>
+                                                <th onClick={() => handleSort('genotype')}>Genotype ↕</th>
+                                                <th onClick={() => handleSort('trait')}>Condition ↕</th>
+                                                <th onClick={() => handleSort('risk')}>Status ↕</th>
                                             </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                                        </thead>
+                                        <tbody>
+                                            {grouped[category].map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <a
+                                                            href={`https://www.snpedia.com/index.php/${item.rsid}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            style={{color: '#3b82f6', textDecoration: 'none', fontWeight: '500'}}
+                                                        >
+                                                            {item.rsid}
+                                                        </a>
+                                                    </td>
+                                                    <td>{item.chromosome}</td>
+                                                    <td><strong>{item.genotype}</strong></td>
+                                                    <td style={{fontSize: '0.9rem'}}>
+                                                        {item.risk === 'carrier'
+                                                            ? <><span style={{color: '#a78bfa', fontWeight: 500}}>Carrier for: </span>{item.trait}</>
+                                                            : item.trait
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <span className={`badge badge-${item.risk}`}>
+                                                            {item.risk === 'carrier' ? 'Carrier' : item.risk}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ));
+                        })()
                     </div>
                 )}
             </main>
