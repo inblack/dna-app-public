@@ -1,0 +1,16 @@
+# Never commit private project files
+../project_private/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
+# Secrets / tokens (safety net)
+*token*
+*secret*
+*credential*
+*.env
