@@ -1,30 +1,48 @@
 const { useState, useRef, useEffect } = React;
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 
 const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 
-// Returns true if the genotype carries the risk allele,
-// accounting for strand flips (Ancestry/23andMe report on either strand).
-function carriesRiskAllele(genotype, riskAllele, refAllele) {
-    if (!genotype || !riskAllele) return false;
-    const gt = genotype.trim().toUpperCase();
+// Count how many copies of the risk allele the genotype contains,
+// accounting for strand flips.
+function countRiskAlleles(genotype, riskAllele, refAllele) {
+    if (!genotype || !riskAllele) return 0;
+    const gt = genotype.trim().toUpperCase().split('');
     const risk = riskAllele.toUpperCase();
     const ref  = (refAllele || '').toUpperCase();
 
-    // Direct match
-    if (gt.includes(risk)) return true;
-
-    // Strand flip: only flip if this is an A/T or C/G ambiguous site
     const compRisk = COMPLEMENT[risk];
     const compRef  = COMPLEMENT[ref];
-    // If ref and risk are complements of each other (e.g. ref=G, risk=A → comp of A is T ≠ G → not ambiguous)
-    // Only flip when risk complement makes sense against the ref complement
-    if (compRisk && compRef && compRisk !== ref) {
-        if (gt.includes(compRisk)) return true;
-    }
+    // Determine if we need to check complement (strand flip)
+    const useComplement = compRisk && compRef && compRisk !== ref;
 
-    return false;
+    return gt.filter(a => a === risk || (useComplement && a === compRisk)).length;
+}
+
+// Classify risk based on zygosity and chromosome.
+// sex: 'male' | 'female'
+// chromosome: raw string from the DNA file ('1'..'22', 'X'/'23', 'MT'/'26')
+function classifyRisk(dbEntry, genotype, chromosome, sex) {
+    const copies = countRiskAlleles(genotype, dbEntry.risk_allele, dbEntry.ref_allele);
+    if (copies === 0) return 'normal';
+
+    const chrom = (chromosome || '').trim().toUpperCase();
+    const isXLinked = chrom === 'X' || chrom === '23';
+    const isMito    = chrom === 'MT' || chrom === '26';
+
+    // Mitochondrial: any presence = use DB risk level
+    if (isMito) return dbEntry.risk;
+
+    // X-linked in males: hemizygous → full risk
+    if (isXLinked && sex === 'male') return dbEntry.risk;
+
+    // Homozygous for risk allele → full risk
+    if (copies >= 2) return dbEntry.risk;
+
+    // Heterozygous: one copy = carrier (relevant for recessive; dominant would still be high)
+    // We can't easily know dominance from ClinVar TSV, so flag as 'carrier' to avoid false alarms
+    return 'carrier';
 }
 
 function App() {
@@ -35,6 +53,7 @@ function App() {
     const [refDb, setRefDb] = useState({});
     const [dbLoading, setDbLoading] = useState(true);
     const [showNormal, setShowNormal] = useState(false);
+    const [sex, setSex] = useState('male');
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -96,12 +115,7 @@ function App() {
                 
                 if (rsid && refDb[rsid]) {
                     const dbEntry = refDb[rsid];
-                    let finalRisk = 'normal';
-                    
-                    // Strand-aware risk allele check
-                    if (carriesRiskAllele(genotype, dbEntry.risk_allele, dbEntry.ref_allele)) {
-                        finalRisk = dbEntry.risk;
-                    }
+                    const finalRisk = classifyRisk(dbEntry, genotype, chromosome, sex);
 
                     parsedResults.push({
                         rsid,
@@ -158,21 +172,35 @@ function App() {
                         {dbLoading ? (
                             <p style={{textAlign: 'center'}}>Loading Genomic Reference Database...</p>
                         ) : (
-                            <div 
-                                className="upload-area"
-                                onClick={() => fileInputRef.current.click()}
-                            >
-                                <input 
-                                    type="file" 
-                                    className="hidden-input" 
-                                    ref={fileInputRef}
-                                    onChange={handleFileUpload}
-                                    accept=".txt,.csv,.tsv"
-                                />
-                                <h3>Upload your DNA Data</h3>
-                                <p>Supports 23andMe, AncestryDNA, and FamilyTreeDNA formats.</p>
-                                <button>Select File</button>
-                            </div>
+                            <>
+                                <div style={{textAlign: 'center', marginBottom: '1rem'}}>
+                                    <label style={{fontSize: '0.9rem', color: '#94a3b8', marginRight: '0.75rem'}}>Biological Sex:</label>
+                                    <select
+                                        id="sex-selector"
+                                        value={sex}
+                                        onChange={e => setSex(e.target.value)}
+                                        style={{background: '#1e293b', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '6px', padding: '0.3rem 0.6rem', fontSize: '0.9rem'}}
+                                    >
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                    </select>
+                                </div>
+                                <div 
+                                    className="upload-area"
+                                    onClick={() => fileInputRef.current.click()}
+                                >
+                                    <input 
+                                        type="file" 
+                                        className="hidden-input" 
+                                        ref={fileInputRef}
+                                        onChange={handleFileUpload}
+                                        accept=".txt,.csv,.tsv"
+                                    />
+                                    <h3>Upload your DNA Data</h3>
+                                    <p>Supports 23andMe, AncestryDNA, and FamilyTreeDNA formats.</p>
+                                    <button>Select File</button>
+                                </div>
+                            </>
                         )}
                         <p style={{marginTop: '2rem', textAlign: 'center', fontSize: '0.9rem', color: '#94a3b8'}}>
                             <strong>Privacy Guarantee:</strong> All processing is done locally in your browser. Your DNA data never leaves your device.
@@ -190,7 +218,7 @@ function App() {
                                         onChange={(e) => setShowNormal(e.target.checked)} 
                                         style={{marginRight: '0.5rem'}}
                                     />
-                                    Show Normal/Benign
+                                    Show Normal Results
                                 </label>
                                 <button onClick={() => setFileData(null)} style={{marginRight: '1rem', background: '#475569'}}>Analyze Another</button>
                                 <button onClick={() => window.print()}>Print Report</button>
