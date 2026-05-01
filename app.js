@@ -118,6 +118,11 @@ function App() {
             <header>
                 <h1>DNA Health Analyzer</h1>
                 <p>Secure, local browser analysis of your genetic data.</p>
+                {!dbLoading && refDb['_metadata'] && (
+                    <p style={{fontSize: '0.8rem', color: '#94a3b8', marginTop: '-0.5rem'}}>
+                        ClinVar Database Version: {refDb['_metadata'].last_updated}
+                    </p>
+                )}
             </header>
             
             <main>
