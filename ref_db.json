@@ -1,0 +1,42 @@
+{
+  "rs429358": {
+    "trait": "Alzheimer risk (APOE-e4)",
+    "risk": "high",
+    "rarity": "common"
+  },
+  "rs7412": {
+    "trait": "Alzheimer modifier (APOE-e2)",
+    "risk": "low",
+    "rarity": "common"
+  },
+  "rs1801133": {
+    "trait": "MTHFR variant (C677T)",
+    "risk": "medium",
+    "rarity": "common"
+  },
+  "rs1801131": {
+    "trait": "MTHFR variant (A1298C)",
+    "risk": "medium",
+    "rarity": "common"
+  },
+  "rs6152": {
+    "trait": "Male Pattern Baldness (AR)",
+    "risk": "medium",
+    "rarity": "common"
+  },
+  "rs1815739": {
+    "trait": "Muscle Performance (ACTN3)",
+    "risk": "low",
+    "rarity": "common"
+  },
+  "rs4680": {
+    "trait": "Pain tolerance / dopamine (COMT)",
+    "risk": "low",
+    "rarity": "common"
+  },
+  "rs4988235": {
+    "trait": "Lactose Intolerance (MCM6)",
+    "risk": "medium",
+    "rarity": "common"
+  }
+}
