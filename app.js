@@ -7,6 +7,7 @@ function App() {
     const [sortConfig, setSortConfig] = useState({ key: 'risk', direction: 'desc' });
     const [refDb, setRefDb] = useState({});
     const [dbLoading, setDbLoading] = useState(true);
+    const [showNormal, setShowNormal] = useState(false);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -67,12 +68,21 @@ function App() {
                 rsid = rsid?.trim();
                 
                 if (rsid && refDb[rsid]) {
+                    const dbEntry = refDb[rsid];
+                    let finalRisk = 'normal';
+                    
+                    // Simple strand match check
+                    if (genotype && dbEntry.risk_allele && genotype.includes(dbEntry.risk_allele)) {
+                        finalRisk = dbEntry.risk;
+                    }
+
                     parsedResults.push({
                         rsid,
                         chromosome: chromosome?.trim(),
                         position: position?.trim(),
                         genotype: genotype?.trim(),
-                        ...refDb[rsid]
+                        ...dbEntry,
+                        risk: finalRisk
                     });
                 }
             });
@@ -140,7 +150,16 @@ function App() {
                     <div className="card">
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                             <h2>Analysis Results for {fileData}</h2>
-                            <div>
+                            <div style={{display: 'flex', alignItems: 'center'}}>
+                                <label style={{marginRight: '1rem', display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '0.9rem', color: '#94a3b8'}}>
+                                    <input 
+                                        type="checkbox" 
+                                        checked={showNormal} 
+                                        onChange={(e) => setShowNormal(e.target.checked)} 
+                                        style={{marginRight: '0.5rem'}}
+                                    />
+                                    Show Normal/Benign
+                                </label>
                                 <button onClick={() => setFileData(null)} style={{marginRight: '1rem', background: '#475569'}}>Analyze Another</button>
                                 <button onClick={() => window.print()}>Print Report</button>
                             </div>
@@ -161,7 +180,7 @@ function App() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {results.map((item, idx) => (
+                                        {results.filter(item => showNormal || item.risk !== 'normal').map((item, idx) => (
                                             <tr key={idx}>
                                                 <td>
                                                     <a 

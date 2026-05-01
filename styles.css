@@ -116,6 +116,7 @@ th:hover {
 .badge-high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
 .badge-medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
 .badge-low { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+.badge-normal { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
 
 @media print {
     body { background: white; color: black; }
@@ -126,4 +127,5 @@ th:hover {
     .badge-high { background: transparent; border: 1px solid red; color: red; }
     .badge-medium { background: transparent; border: 1px solid orange; color: orange; }
     .badge-low { background: transparent; border: 1px solid green; color: green; }
+    .badge-normal { background: transparent; border: 1px solid gray; color: gray; }
 }
