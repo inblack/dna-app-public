@@ -163,7 +163,16 @@ function App() {
                                     <tbody>
                                         {results.map((item, idx) => (
                                             <tr key={idx}>
-                                                <td>{item.rsid}</td>
+                                                <td>
+                                                    <a 
+                                                        href={`https://www.snpedia.com/index.php/${item.rsid}`} 
+                                                        target="_blank" 
+                                                        rel="noopener noreferrer"
+                                                        style={{color: '#3b82f6', textDecoration: 'none', fontWeight: '500'}}
+                                                    >
+                                                        {item.rsid} 🔗
+                                                    </a>
+                                                </td>
                                                 <td>{item.chromosome}</td>
                                                 <td><strong>{item.genotype}</strong></td>
                                                 <td>{item.trait}</td>
