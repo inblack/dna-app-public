@@ -114,6 +114,7 @@ th:hover {
 }
 
 .badge-high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+.badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.5); }
 .badge-medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
 .badge-carrier { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
 .badge-low { background: rgba(16, 185, 129, 0.2); color: var(--success); }

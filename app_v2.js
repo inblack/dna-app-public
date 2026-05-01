@@ -1,8 +1,16 @@
 const { useState, useRef, useEffect } = React;
 
-const APP_VERSION = "1.4.1";
+const APP_VERSION = "1.4.2";
 
 const COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
+
+// Known problematic SNPs on consumer DNA chips (Ancestry/23andMe)
+// that consistently report false positives for rare pathogenic variants.
+const KNOWN_ERRORS = {
+    'rs267606893': 'Commonly misreported on consumer DNA chips; likely a false positive if no symptoms exist.',
+    'rs137854557': 'Known for false positives on AncestryDNA/23andMe chips.',
+    'rs730881495': 'Rare BRCA variant; consumer chips often have high false-positive rates for this position.'
+};
 
 // Count how many copies of the risk allele the genotype contains,
 // accounting for strand flips.
@@ -52,12 +60,15 @@ function classifyRisk(dbEntry, genotype, chromosome, sex) {
     // X-linked in males: hemizygous → full risk
     if (isXLinked && sex === 'male') return dbEntry.risk;
 
-    // Homozygous for risk allele → full risk
-    if (copies >= 2) return dbEntry.risk;
-
-    // Heterozygous: one copy = carrier (relevant for recessive; dominant would still be high)
-    // We can't easily know dominance from ClinVar TSV, so flag as 'carrier' to avoid false alarms
-    return 'carrier';
+    // Final risk determination
+    let risk = (copies >= 2) ? dbEntry.risk : 'carrier';
+    
+    // Override with warning if it's a known error SNP or rare mitochondrial finding
+    if (KNOWN_ERRORS[dbEntry.rsid] || (isMito && risk === 'high')) {
+        return 'warning';
+    }
+    
+    return risk;
 }
 
 // Category priority order for display
@@ -75,7 +86,7 @@ const CATEGORY_ORDER = [
     'Other',
 ];
 
-const RISK_ORDER = { high: 0, carrier: 1, medium: 2, low: 3, normal: 4 };
+const RISK_ORDER = { high: 0, warning: 1, carrier: 2, medium: 3, low: 4, normal: 5 };
 
 function getCategory(trait) {
     const t = (trait || '').toLowerCase();
@@ -334,10 +345,13 @@ function App() {
                                                     <td>{item.chromosome}</td>
                                                     <td><strong>{item.genotype}</strong></td>
                                                     <td style={{fontSize: '0.9rem'}}>
-                                                        {item.risk === 'carrier'
-                                                            ? <><span style={{color: '#a78bfa', fontWeight: 500}}>Carrier for: </span>{item.trait}</>
-                                                            : item.trait
-                                                        }
+                                                        {item.risk === 'carrier' && <span style={{color: '#a78bfa', fontWeight: 500}}>Carrier for: </span>}
+                                                        {item.trait}
+                                                        {KNOWN_ERRORS[item.rsid] && (
+                                                            <div style={{color: '#f59e0b', fontSize: '0.75rem', marginTop: '0.25rem', fontStyle: 'italic'}}>
+                                                                ⚠️ {KNOWN_ERRORS[item.rsid]}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         <span className={`badge badge-${item.risk}`}>
@@ -354,6 +368,19 @@ function App() {
                     </div>
                 )}
             </main>
+
+            <footer style={{marginTop: '4rem', padding: '2rem', borderTop: '1px solid #334155', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center'}}>
+                <div style={{maxWidth: '800px', margin: '0 auto'}}>
+                    <h4 style={{color: '#f1f5f9', marginBottom: '0.5rem'}}>Medical Disclaimer</h4>
+                    <p style={{marginBottom: '1rem'}}>
+                        This tool is for informational and educational purposes only. Consumer-grade DNA tests (AncestryDNA, 23andMe, etc.) are 
+                        <strong> not diagnostic-grade</strong> and are known to have high false-positive rates for rare pathogenic variants.
+                    </p>
+                    <p>
+                        Any significant medical findings should be confirmed by a clinical laboratory and discussed with a qualified healthcare professional or genetic counselor.
+                    </p>
+                </div>
+            </footer>
         </div>
     );
 }
